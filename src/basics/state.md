@@ -21,12 +21,12 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-cw-storage-plus = "0.13.4"
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
+cw-storage-plus = "2.0.0"
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
+cw-multi-test = "2.1.1"
 ```
 
 Now create a new file where you will keep a state for the contract - we typically call it `src/state.rs`:
@@ -108,11 +108,11 @@ pub struct InstantiateMsg {
 Now go forward to instantiate the entry point in `src/contract.rs`, and initialize our state to whatever we got in the instantiation message:
 
 ```rust,noplayground
-# use crate::msg::{GreetResp, InstantiateMsg, QueryMsg};
+use crate::msg::{GreetResp, InstantiateMsg, QueryMsg};
 use crate::state::ADMINS;
 // --snip--
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 pub fn instantiate(
@@ -135,7 +135,7 @@ pub fn instantiate(
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
+#         Greet {} => to_json_binary(&query::greet()?),
 #     }
 # }
 # 
@@ -282,7 +282,7 @@ empty JSON to some non-empty message! We can quickly fix it by updating the test
 # use crate::msg::{GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -305,8 +305,8 @@ empty JSON to some non-empty message! We can quickly fix it by updating the test
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -413,7 +413,7 @@ And implement it in `src/contract.rs`:
 use crate::msg::{AdminsListResp, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -436,8 +436,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        Greet {} => to_binary(&query::greet()?),
-        AdminsList {} => to_binary(&query::admins_list(deps)?),
+        Greet {} => to_json_binary(&query::greet()?),
+        AdminsList {} => to_json_binary(&query::admins_list(deps)?),
     }
 }
  
@@ -504,13 +504,13 @@ mod query {
 # }
 ```
 
-Now when we have the tools to test the instantiation, let's write a test case:
+Now that we have the tools to test the instantiation, let's write a test case:
 
 ```rust,noplayground
 use crate::msg::{AdminsListResp, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -533,8 +533,8 @@ use crate::msg::{AdminsListResp, GreetResp, InstantiateMsg, QueryMsg};
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -564,13 +564,24 @@ use crate::msg::{AdminsListResp, GreetResp, InstantiateMsg, QueryMsg};
 #[cfg(test)]
 mod tests {
 #     use cosmwasm_std::Addr;
-#     use cw_multi_test::{App, ContractWrapper, Executor};
 # 
 #     use super::*;
-# 
+#   
+    use crate::msg::{AdminsListResp, GreetResp, InstantiateMsg, QueryMsg};
+    use cosmwasm_std::testing::MockApi;
+    use cw_multi_test::{App, ContractWrapper, Executor, AppBuilder};
+
+
+    fn custom_app() -> App {
+        let mock_api = MockApi::default().with_prefix("inj");
+        AppBuilder::new()
+            .with_api(mock_api)
+            .build(|_, _, _| {})
+    }
+
     #[test]
     fn instantiation() {
-        let mut app = App::default();
+        let mut app = custom_app();
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
@@ -593,12 +604,19 @@ mod tests {
 
         assert_eq!(resp, AdminsListResp { admins: vec![] });
 
+        // Test with valid bech32 addresses
+        let test_admin1 = app.api().addr_make("admin1");
+        let test_admin2 = app.api().addr_make("admin2");
+
         let addr = app
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
                 &InstantiateMsg {
-                    admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    admins: vec![
+                        test_admin1.to_string(),
+                        test_admin2.to_string(),
+                    ],
                 },
                 &[],
                 "Contract 2",
@@ -614,7 +632,7 @@ mod tests {
         assert_eq!(
             resp,
             AdminsListResp {
-                admins: vec![Addr::unchecked("admin1"), Addr::unchecked("admin2")],
+                admins: vec![Addr::unchecked(test_admin1), Addr::unchecked(test_admin2)],
             }
         );
     }
@@ -655,5 +673,7 @@ mod tests {
 The test is simple - instantiate the contract twice with different initial admins, and ensure the query result
 is proper each time. This is often the way we test our contract - we execute bunch o messages on the contract,
 and then we query it for some data, verifying if query responses are like expected.
+
+We have had to use a mock api for the test app to ensure test addresses are deemed valid. While we are using the prefix "inj" for "injective" you can change this to be whatever you like.
 
 We are doing a pretty good job developing our contract. Now it is time to use the state and allow for some executions.

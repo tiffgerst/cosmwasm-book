@@ -1,12 +1,10 @@
 # Design
 
-This time we will start discussing the design of our system a bit. Building multi-contract systems tend to
-be a bit more complicated than just isolated contracts, so I want to give you some anchor on what we are
-building in this chapter. If you feel lost with a design, don't worry - it will get clear while implementing
-contracts. For now, go through it to get a general idea.
+This time we will start by discussing the design of our system a bit. Building multi-contract systems tends to
+be a bit more complicated than just isolated contracts, so I want to give you some notion of what we are
+building in this chapter. If you feel lost with a design, don't worry - it will become clear while implementing the contracts. For now, go through it to get a general idea.
 
-First, let's think about the problem we want to solve. Our admins are a vector of addresses. Anyone already
-an admin can add anyone he wants to the list. But this "anyone" can be a second instance of the same admin
+First, let's think about the problem we want to solve. Our admins are a vector of addresses. Anyone that is already an admin can add anyone he wants to the list. But this "anyone" can be a second instance of the same admin
 account, so he counts twice for donations!
 
 This issue is relatively simple to fix, but there is another problem - as we already learned, the admin could
@@ -17,17 +15,16 @@ multiple times. There would be many distinct addresses that the same person owns
 It looks like an unpleasant situation, but there are ways to manage it. The one we would implement is voting.
 Instead of being able to add another admin to the list, admins would be allowed to propose their colleagues
 as new admins. It would start a voting process - everyone who was an admin at the time of the proposal creation
-would be able to support it. If more than half admins would support the new candidate, he would immediately
+would be able to support it. If more than half the admins support the new candidate, he will immediately
 become an admin.
 
 It is not the most convoluted voting process, but it would be enough for our purposes.
 
 ## Voting process
 
-To achieve this goal, we would create two smart contracts. First, one would be reused contract from the
-[Basics](../basics.md) chapter - it would be an `admin` contract. Additionally, we would add a `voting` contract.
-It would be responsible for managing a single voting process. It would be instantiated by an `admin` contract
-whenever an admin wants to add his friend to a list. Here is a diagram of the contracts relationship:
+To achieve this goal, we will create two smart contracts. First, we will reuse the contract from the
+[Basics](../basics.md) chapter - this will be the `admin` contract. Additionally, we will add a `voting` contract.
+The voting contract will be responsible for managing a single voting process. It would be instantiated by an `admin` contract whenever an admin wants to add his friend to a list. Here is a diagram of the contracts relationship:
 
 ```plantuml
 @startuml
@@ -57,7 +54,7 @@ admin o- voting: manages
 @enduml
 ```
 
-Here is adding an admin flowchart - assuming there are 5 admins on the contract already, but 2 of them did nothing:
+Here is an admin flowchart - this assumes there are 5 admins on the contract already, but 2 of them do nothing:
 
 ```plantuml
 @startuml
@@ -86,7 +83,7 @@ votes -> admin --: add_admin { addr: new_admin }
 @enduml
 ```
 
-I already put some hints about contracts implementation, but I will not go into them yet.
+I already put some hints about the contract implementations, but I will not go into them yet.
 
 ## Messages forwarding
 

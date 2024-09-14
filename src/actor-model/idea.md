@@ -2,7 +2,7 @@
 
 The actor model is the solution to the problem of communication between smart
 contracts. Let's take a look at the reasons why this particular solution is
-chosen in CosmWasm, and what are the consequences of that.
+chosen in CosmWasm, and what the consequences of that are.
 
 ## The problem
 
@@ -21,7 +21,7 @@ of problems, in particular with shared state consistency.
 The other approach which is far more popular in business-level modeling is to
 treat entities as actors, which can perform some tasks, but without
 interrupting it with calls to other contracts. Any calls to other contracts can
-only be called after the whole execution is performed. When "subcall" is
+only be called after the whole execution is performed. When the "subcall" is
 finished, it will call the original contract back.
 
 This solution may feel unnatural, and it requires different kinds of design
@@ -54,7 +54,7 @@ triggered by a chef, but in the Actor model, it is not possible. Here, entities
 of the system are passive and cannot observe the environment actively - they
 only react to messages from other system participants. Also in KFC, the seller
 would not schedule subtasks for particular chefs; instead, he would leave tasks
-to be taken by them, when they are free. It is not the case, because as before -
+to be taken by them, when they are free. This is not the case, because as before -
 chefs cannot actively listen to the environment. However, it would be possible
 to create a contract for being a chef's dispatcher which would collect all
 orders from sellers, and balance them across chefs for some reason.
@@ -64,7 +64,7 @@ orders from sellers, and balance them across chefs for some reason.
 Actors are the model entities, but to properly communicate with them, we need
 some kind of protocol. Every actor is capable of performing several actions. In
 my previous KFC example, the only action seller can do is "Charge payment and
-create order". However, it is not always the case - our chefs were proficient
+create order". However, this is not always the case - our chefs were proficient
 at performing both "Prepare fries" and "Prepare Sandwich" actions - and also
 many more.
 
@@ -83,26 +83,25 @@ the contract itself, plus all the sub-actions it schedules.
 
 ## Multi-stage Actions
 
-So as the whole idea makes some sense, there is the problem created by the
+So as the whole idea makes more sense, there is the problem created by the
 actor model: what if I want to perform some action in my contract, but to
 completely finalize some steps, the contract has to make sure that some
-sub-action he scheduled are finished?
+sub-action it scheduled are finished?
 
 Imagine that in the previous KFC situation, there is no dedicated Waiter.
 Instead the Seller was serving you a meal when the Chefs finished their job.
 
 This kind of pattern is so important and common that in CosmWasm, we developed
-a special way to handle it, which is dedicated `Reply` action.
+a special way to handle it, which is a dedicated `Reply` action.
 
-So when Seller is scheduling actions for chefs, he assigns some number to this
-action (like order id) and passes it to chefs. He also remembers how many
-actions he scheduled for every order id. Now every time chef is finished with
+So when a Seller is scheduling actions for chefs, he assigns some number to this
+action (like order id) and passes it to the chefs. He also remembers how many
+actions he scheduled for every order id. Now every time a chef is finished with
 his action; he would call the special `Reply` action on Seller, in which he
 would pass back the order id. Then, Seller would decrease the number of actions
 left for this order, and if it reached zero, he would serve a meal.
 
-Now you can say, that the `Reply` action is completely not needed, as Chefs
-could just schedule any arbitrary action on Seller, like `Serve`, why is there
+Now you may ask, if Chefs can just schedule any arbitrary action on the Seller, like `Serve`, what is
 the special `Reply` for? The reason is abstraction and reusability. The Chefs
 task is to prepare a meal, and that is all. There is no reason for him to know
 why he is even preparing Fries - if it is part of the bigger task (like order
@@ -126,7 +125,7 @@ job would be to show something on the screen, maybe print something. This is
 not the case with Smart Contracts. The only thing which can be affected by the
 Smart Contract is their internal state. So, the state is arbitrary data that is
 kept by the contract. Previously in the KFC example I mentioned, the Seller is
-keeping in mind how many actions he scheduled for chefs are not yet finished -
+keeping in mind how many actions he scheduled for chefs which have not yet finished -
 this number is part of the Seller's state.
 
 To give a more realistic example of a contract state, let's think about a more
@@ -135,19 +134,19 @@ our currency - maybe we want to create some smart contracts-based market for
 some MMORPG game. So, we need some way to be able to at least transfer currency
 between players. We can do that, by creating the contract we would call
 `MmoCurrency`, which would support the `Transfer` action to transfer money to
-another player. Then what would be the state of such a contract? It would be
+another player. Then what would the state of such a contract be? It would be
 just a table mapping player names to the amount of currency they own. The
-contract we just invited exists in CosmWasm examples, and it is called the
+contract we just invented exists in CosmWasm examples, and it is called the
 [`cw20-base`
 contract](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw20-base)
-(it is a bit more complicated, but it is its core idea).
+(it is a bit more complicated, but that is its core idea).
 
-And now there is a question - how is this helpful to transfer currency if I
-cannot check how much of it do I own? It is a very good question, and the
+And now there is the question - how is it helpful to transfer currency if I
+cannot check how much of it I own? This is a very good question, and the
 answer to that is simple - the whole state of every contract in our system is
 public. It is not universal for every Actor model, but it is how it works in
 CosmWasm, and it is kind of forced by the nature of blockchain. Everything
-happening in blockchain has to be public, and if some information should be
+happening on the blockchain has to be public, and if some information should be
 hidden, it has to be stored indirectly.
 
 There is one very important thing about the state in CosmWasm, and it is the
@@ -160,31 +159,31 @@ updating the state), and only then do we decrease the sender amount. However,
 before decreasing it, we need to check if a sender possesses enough funds to
 perform the transaction. In case we realize that we cannot do it, we don't need
 to do any rolling back by hand - we would just return a failure from the action
-execution, and the state would not be updated. So, when in the contract state
+execution, and the state would not be updated. So, when the contract state
 is updated, it is just a local copy of this state being altered, but the
 partial changes would never be visible by other contracts.
 
 ## Queries
 
 There is one building block in the CosmWasm approach to the Actor model, which
-I haven't yet cover. As I said, the whole state of every contract is public and
+I haven't yet covered. As I said, the whole state of every contract is public and
 available for everyone to look at. The problem is that this way of looking at
 state is not very convenient - it requires users of contracts to know its
 internal structure, which kind of violates the SOLID rules (Liskov substitution
-principle in particular). If, for example a contract is updated and its state
+principle in particular). If, for example, a contract is updated and its state
 structure changes a bit, another contract looking at its state would just
-nevermore work. Also, it is often the case, that the contract state is kind of
+never work again. Also, it is often the case, that the contract state is kind of
 simplified, and information that is relevant to the observer would be
 calculated from the state.
 
 This is where queries come into play. Queries are the type of messages to
-contract, which does not perform any actions, so do not update any state, but
+contracts, which do not perform any actions, so do not update any state, but
 can return an answer immediately.
 
 In our KFC comparison, the query would be if Seller goes to Chef to ask "Do we
 still have pickles available for our cheeseburgers"? It can be done while
-operating, and response can be used in it. It is possible because queries can
-never update their state, so they do not need to be handled in a transactional
+operating, and the response can be used in it. It is possible because queries can
+never update state, so they do not need to be handled in a transactional
 manner.
 
 However, the existence of queries doesn't mean that we cannot look at the
@@ -201,59 +200,58 @@ CosmWasm contract to visualize what the "transactional state" means.
 Let's imagine two contracts:
 
 1. The `MmoCurrency` contract mentioned before, which can perform the
-   `Transfer` action, allows transferring some `amount` of currency to some
+   `Transfer` action, allowing the transfer of some `amount` of currency to some
    `receiver`.
 2. The `WarriorNpc` contract, which would have some amount of our currency, and
-   he would be used by our MMO engine to pay the reward out for some quest
-   player could perform. It would be triggered by `Payout` action, which can be
+   it would be used by our MMO engine to pay the reward out for some quest
+   players could perform. It would be triggered by `Payout` action, which can be
    called only by a specific client (which would be our game engine).
 
 Now here is an interesting thing - this model forces us to make our MMO more
 realistic in terms of the economy that we traditionally see - it is because
 `WarriorNpc` has some amount of currency, and cannot create more out of
-anything. It is not always the case (the previously mentioned `cw20` has a
+nothing. This is not always the case (the previously mentioned `cw20` has a
 notion of Minting for this case), but for the sake of simplicity let's assume this
 is what we want.
 
-To make the quest reasonable for longer, we would make a reward for it to be
-always between `1 mmo` and `100 mmo`, but it would be ideally `15%` of what
+To make the quest reasonable for longer, we would make a reward for it to
+always be between `1 mmo` and `100 mmo`, but it would ideally be `15%` of what
 Warrior owns. This means that the quest reward decreases for every subsequent
-player, until Warrior would be broke, left with nothing, and will no longer be
-able to payout players.
+player, until Warrior would be broke, left with nothing, and no longer able to payout players.
 
 So, what would the flow look like? The first game would send a `Payout` message
 to the `WarriorNpc` contract, with info on who should get the reward. Warrior
 would keep track of players who fulfilled the quest, to not pay out the same
-person twice - there would be a list of players in his state. First, he would
-check the list looking for players to pay out - if he is there, he will finish
+person twice - there would be a list of players in its state. First, it would
+check the list looking for the player who is due to be paid out - if he is there, it will finish
 the transaction with an error.
 
 However, in most cases the player would not be on the list - so then
-`WarriorNpc` would add him to the list. Now the Warrior would finish his part
+`WarriorNpc` would add him to the list. Now the Warrior would finish its part
 of the task, and schedule the `Transfer` action to be performed by
 `MmoCurrency`.
 
-But there is the important thing - because `Transfer` action is actually part
+But this is the important thing - because `Transfer` action is actually part
 of the bigger `Payout` flow, it would not be executed on the original
 blockchain state, but on the local copy of it, to which the player's list is
-already applied to. So if the `MmoCurrency` would for any reason takes a look
+already applied to. So if the `MmoCurrency` would for any reason take a look
 at `WarriorNpc` internal list, it would be already updated.
 
 Now `MmoCurrency` is doing its job, updating the state of Warrior and player
 balance (note, that our Warrior is here just treated as another player!). When
 it finishes, two things may happen:
 
-1. There was an error - possibly Warrior is out of cash, and it can nevermore
-   pay for the task. In such case, none of the changes - neither updating the
-   list of players succeeding, nor balance changes are not applied to the
-   original blockchain storage, so they are like they never happened. In the
-   database world, it is denoted as rolling back the transaction.
-2. Operation succeed - all changes on the state are now applied to the
+1. There was an error - possibly Warrior is out of cash, and it can no longer
+   pay for the task. In that case, none of the changes - neither updating the
+   list of players, nor balance changes are applied to the
+   original blockchain storage, so it is like they never happened. In the
+   database world, this is denoted as rolling back the transaction.
+2. Operation succeeds - all changes on the state are now applied to the
    blockchain, and any further observation of `MmoCurrency` or `WarriorNpc` by
    the external world would see updated data.
 
 There is one problem - in this model, our list is not a list of players who
-fulfilled the quest (as we wanted it to be), but the list of players who paid
+fulfilled the quest (as we wanted it to be), but the list of players who were paid
 out (as in transfer failure, the list is not updated). We can do better.
 
 ## Different ways of handling responses
@@ -261,7 +259,7 @@ out (as in transfer failure, the list is not updated). We can do better.
 Note that we didn't mention a `Reply` operation at all. So why was it not
 called by `MmoCurrency` on `WarriorNpc`? The reason is that this operation is
 optional. When scheduling sub-actions on another contract we may choose when
-`Reply` how the result should be handled:
+`Reply` should be called and how the result should be handled:
 
 1. Never call `Reply`, action fails if sub-message fails
 2. Call `Reply` on success
@@ -271,38 +269,29 @@ optional. When scheduling sub-actions on another contract we may choose when
 So, if we do not request `Reply` to be called by subsequent contract, it will
 not happen. In such a case if a sub-call fails, the whole transaction is rolled
 back - sub-message failure transitively causes the original message failure. It
-is probably a bit complicated for now, but I promise it would be simple if you
-would did some practice with that.
+is probably a bit complicated for now, but I promise it will be simple when you practice a bit more.
 
 When handling the reply, it is important to remember, that although changes are
-not yet applied to the blockchain (the transaction still can be failed), the
+not yet applied to the blockchain (the transaction can still fail), the
 reply handler is already working on the copy of the state with all changes made
-by sub-message so far applied. In most cases, it would be a good thing, but it
+by sub-message applied. In most cases, this would be a good thing, but it
 has a tricky consequence - if the contract is calling itself recursively, it is
 possible that subsequent call overwrote things set up in the original message.
-It rarely happens, but may need special treatment in some cases - for now I
-don't want to go deeply into details, but I want you to remember about what to
+This rarely happens, but may need special treatment in some cases - for now I
+don't want to go too deeply into details, but I want you to remember what to
 expect after state in the actor's flow.
 
-Now let's take a look at handling results with `2`-`4` options. It is actually
-interesting, that using `2`, even if the transaction is performed by sub-call
-succeed, we may now take a look at the data it returned with `Reply`, and on
-its final state after it finished, and we can still decide, that act as a
-whole is a failure, in which case everything would be rolled back - even
-currency transfer performed by external contract.
+Now let's take a look at handling results with options `2`-`4`. `2` presents an interesting case, in that even if the transaction performed by the subcall succeeds, we can still check the returned data and decide the whole transaction is a failure. In this case everything is rolled back - even the transaction performed by the external contract. 
 
-In our case, an interesting option is `3`. So, if the contract would call
-`Reply` on failure, we can decide to claim success, and commit a transaction on
-the state if the sub call failed. Why may it be relevant for us? Possibly
-because our internal list was supposed to keep the list of players succeeding
-with the quest, not paid out! So, if we have no more currency, we still want to
-update the list!
+`3` is similarly interesting in that if the external contract sends a
+`Reply` on failure, we can still decide to succeed, and commit the transaction. Why would we want to do this? One use case could be if our internal list is only supposed to keep track of players succeeding
+with the quest, not the ones being paid out. So, even if we have no more currency, and the external call fails, we still want to update the list!
 
-The most common way to use the replies (option `2` in particular)  is to
-instantiate another contract, managed by the one called. The idea is that in
+The most common way to use the replies (option `2` in particular)  is when
+instantiating another contract, managed by the one called. The idea is that in
 those use cases, the creator contract wants to keep the address of the created
 contract in its state. To do so it has to create an `Instantiate` sub-message,
-and subscribe for its success response, which contains the address of the freshly
+and subscribe to the success response, which contains the address of the freshly
 created contract.
 
 In the end, you can see that performing actions in CosmWasm is built with

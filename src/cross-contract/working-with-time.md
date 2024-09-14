@@ -4,11 +4,11 @@ The concept of time in the blockchain is tricky - as in
 every distributed system, it is not easy to synchronize the
 clocks of all the nodes.
 
-However, there is the notion of a time that is even
+However, there is the notion of a time that is
 monotonic - which means that it should never go "backward"
 between executions. Also, what is important is - time is
 always unique throughout the whole transaction - and even
-the entire block, which is built of multiple transactions.
+the entire block, which is made up of multiple transactions.
 
 The time is encoded in the
 [`Env`](https://docs.rs/cosmwasm-std/1.2.4/cosmwasm_std/struct.Env.html)
@@ -28,9 +28,9 @@ You can see the `time` field, which is the timestamp of the
 processed block. The `height` field is also worth
 mentioning - it contains a sequence number of the processed
 block. It is sometimes more useful than time, as it is
-guaranteed that the `height` field is guaranteed to increase
-between blocks, while two blocks may be executed with the
-same `time` (even though it is rather not probable).
+guaranteed that the `height` field increases
+between blocks, while two blocks may be executed within the
+same `time` (even though it is rather improbable).
 
 Also, many transactions might be executed in a single block.
 That means that if we need a unique id for the execution of
@@ -66,20 +66,11 @@ pub const ADMINS: Map<&Addr, Timestamp> = Map::new("admins");
 # pub const DONATION_DENOM: Item<String> = Item::new("donation_denom");
 ```
 
-As you can see, our admins set became a proper map - we will
-assign the join time to every admin.
+As you can see, our admins set became a proper map - we will assign the join time to every admin.
 
-Now we need to update how we initialize a map - we stored the Empty data previously, but it nevermore matches our value type. Let's check an updated instantiation function:
+You might argue that we should create a separate structure for the value of this map, so that in the future, if we need to add something there, we can. However, in my opinion, this would be premature optimization. We can also change the entire value type in the future, as it would be the same breaking change.
 
-You might argue to create a separate structure for the value
-of this map, so in the future, if we would need to add
-something there, but in my opinion, it would be premature -
-we can also change the entire value type in the future, as
-it would be the same breaking change.
-
-Now we need to update how we initialize a map - we stored
-the `Empty` data previously, but it nevermore matches our
-value type. Let's check an updated instantiation function:
+Now we need to update how we initialize the map. We previously stored Empty data, but it no longer matches our value type. Let's examine the updated instantiation function:
 
 ```rust
 use crate::state::{ADMINS, DONATION_DENOM};
@@ -106,7 +97,7 @@ pub fn instantiate(
 Instead of storing `&Empty {}` as an admin value, we store
 the join time, which we read from `&env.block.time`. Also,
 note that I removed the underscore from the name of the
-`env` block - it was there only to ensure the Rust compiler
+`env` block - it was there to tell the Rust compiler
 the variable is purposely unused and not some kind of a bug.
 
 Finally, remember to remove any obsolete `Empty` imports
@@ -134,23 +125,8 @@ pub struct JoinTimeResp {
 }
 ```
 
-You may question that in response type, I suggest always returning a `joined`
-value, but what to do when no such admin is added? Well, in such a case, I
-would rely on the fact that `load` function returns a descriptive error of
-missing value in storage - however, feel free to define your own error for such
-a case or even make the `joined` field optional, and be returned if requested
-admin exists.
+You may ask why I suggest always returning a joined value in the response, and what to do when no such admin is added. Well, in such a case, I would rely on the fact that the load function returns a descriptive error of a missing value in storage. However, feel free to define your own error for such a case or even make the joined field optional, to be returned only if the requested admin exists.
 
-Finally, there would be a good idea to make a test for new functionality - call
-a new query right after instantiation to verify initial admins has proper join
-time (possibly by extending the existing instantiation test).
+Finally, it would be a good idea to create a test for the new functionality. Call the new query right after instantiation to verify that initial admins have the proper join time (possibly by extending the existing instantiation test).
 
-One thing you might need help with in tests might be how to get the time of
-execution. Using any OS-time would be doomed to fail - instead, you can call
-the
-[`block_info`](https://docs.rs/cw-multi-test/0.16.4/cw_multi_test/struct.App.html#method.block_infohttps://docs.rs/cw-multi-test/0.16.4/cw_multi_test/struct.App.html#method.block_info)
-function to reach the
-[`BlockInfo`](https://docs.rs/cosmwasm-std/latest/cosmwasm_std/struct.BlockInfo.html)
-structure containing the block state at a particular moment in the app - calling
-it just before instantiation would make you sure you are working with the same state
-which would be simulated on the call.
+One thing you might need help with in tests is how to get the time of execution. Using any OS-time would be doomed to fail. Instead, you can call the [`block_info`](https://docs.rs/cw-multi-test/0.16.4/cw_multi_test/struct.App.html#method.block_infohttps://docs.rs/cw-multi-test/0.16.4/cw_multi_test/struct.App.html#method.block_info) function to access the [`BlockInfo`](https://docs.rs/cosmwasm-std/latest/cosmwasm_std/struct.BlockInfo.html) structure containing the block state at a particular moment in the app. Calling it just before instantiation would ensure you are working with the same state that would be simulated on the call.

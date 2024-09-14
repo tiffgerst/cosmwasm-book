@@ -2,7 +2,7 @@ use crate::error::ContractError;
 use crate::msg::{AdminsListResp, ExecuteMsg, InstantiateMsg, JoinTimeResp, QueryMsg};
 use crate::state::{ADMINS, DONATION_DENOM};
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    coins, to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
     StdResult,
 };
 
@@ -25,8 +25,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        AdminsList {} => to_binary(&query::admins_list(deps)?),
-        JoinTime { admin } => to_binary(&query::join_time(deps, admin)?),
+        AdminsList {} => to_json_binary(&query::admins_list(deps)?),
+        JoinTime { admin } => to_json_binary(&query::join_time(deps, admin)?),
     }
 }
 

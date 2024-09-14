@@ -31,7 +31,7 @@ Now I can see you are disappointed in building your contracts with some overcomp
 instead of simple `cargo build`. Fortunately, it is not the case. The common practice is to alias
 the building command to make it as simple as building a native app.
 
-Let's create the `.cargo/config` file in your contract project directory with the following content:
+Let's create the `.cargo/config.toml` file in your contract project directory with the following content:
 
 ```toml
 [alias]

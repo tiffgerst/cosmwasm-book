@@ -1,60 +1,59 @@
 # Actors in blockchain
 
 Previously we were talking about actors mostly in the abstraction of any
-blockchain-specific terms. However, before we would dive into the code, we need
-to establish some common language, and to do so we would look at contracts from
-the perspective of external users, instead of their implementation.
+blockchain-specific terms. However, before we can dive into the code, we need
+to establish some common language. To do so we need to look at contracts from
+the perspective of external users instead of their implementation.
 
-In this part, I would use the `wasmd` binary to communicate with the malaga
+In this part, I will use the `wasmd` binary to communicate with a
 testnet. To properly set it up, check the [Quick start with
 `wasmd`](../wasmd-quick-start.md).
 
 ## Blockchain as a database
 
-It is kind of starting from the end, but I would start with the state part of
-the actor model. Relating to traditional systems, there is one particular thing
-I like to compare blockchain with - it is a database.
+Although it is kind of like starting from the end, I would start with the state part of
+the actor model. In regards to traditional systems, the blockchain is most like a database.
 
 Going back to the previous section we learned that the most important part of
 a contract is its state. Manipulating the state is the only way to persistently
-manifest work performed to the world. But What is the thing which purpose is to
-keep the state? It is a database!
+manifest work performed to the world. But what is the thing whose purpose is to
+keep the state? Its a database!
 
 So here is my (as a contract developer) point of view on contracts: it is a distributed
 database, with some magical mechanisms to make it democratic. Those "magical
-mechanisms" are crucial for BC's existence and they make they are reasons why even
+mechanisms" are crucial for BC's existence and they are the reasons we even
 use blockchain, but they are not relevant from the contract creator's point of
 view - for us, everything that matters is the state.
 
-But you can say: what about the financial part?! Isn't blockchain (`wasmd` in particular)
+But you can say: what about the financial part?! Isn't a blockchain (`wasmd` in particular)
 the currency implementation? With all of those gas costs, sending funds seems
 very much like a money transfer, not database updates. And yes, you are kind of right,
 but I have a solution for that too. Just imagine, that for every native token (by
 "native tokens" we meant tokens handled directly by blockchain, in contradiction
 to for example cw20 tokens) there is a special database bucket (or table if you prefer)
-with mapping of address to how much of a token the address possesses. You can query
+with a mapping of addresses to how much of a token the address possesses. You can query
 this table (querying for token balance), but you cannot modify it directly. To modify
-it you just send a message to a special build-in bank contract. And everything
+it you just send a message to a special built-in bank contract. And everything
 is still a database.
 
-But if blockchain is a database, then where are smart contracts stored?
-Obviously - in the database itself! So now imagine another special table - this
+But if the blockchain is a database, then where are smart contracts stored?
+Obviously in the database itself! So now imagine another special table - this
 one would contain a single table of code-ids mapped to blobs of wasm binaries. And
-again - to operate on this table, you use "special contract" which is not accessible
+again - to operate on this table, you use a "special contract" which is not accessible
 from another contract, but you can use it via `wasmd` binary.
 
-Now there is a question - why do I even care about BC being a DB? So the reason
-is that it makes reasoning about everything in blockchain very natural. Do you
+Now there remains the question - why do I even care about BC being a DB? The reason
+is that it makes reasoning about everything in blockchain much more natural. Do you
 remember that every message in the actor model is transactional? It perfectly
 matches traditional database transactions (meaning: every message starts a new
 transaction)! Also, when we later talk about migrations, it would turn out, that
 migrations in CosmWasm are very much equivalents of schema migrations in
 traditional databases.
 
-So, the thing to remember - blockchain is very similar to a database, having some
+So, the thing to remember - a blockchain is very similar to a database, having some
 specially reserved tables (like native tokens, code repository), with a special
 bucket created for every contract. A contract can look at every table in every
-bucket in the whole blockchain, but it can modify the only one he created.
+bucket in the whole blockchain, but it can only modify its own bucket/the bucket of the contracts it has created.
 
 ## Compile the contract
 
@@ -67,26 +66,28 @@ now, so we will start with compiling it. Start with cloning the repository:
 $ git clone git@github.com:CosmWasm/cw-plus.git
 ```
 
-Then go to `cw4-group` contract and build it:
+Then build the contracts. You may want to comment out the other contracts/update members in the Cargo.toml file for faster execution:
 
 ```bash
-$ cd cw-plus/contracts/cw4-group
+$ cd cw-plus
 $ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/workspace-optimizer:0.12.6
+  cosmwasm/workspace-optimizer:0.16.0
 ```
-
+If you are running on an ARM architecture, be sure to specify a compatible platform i.e. --platform linux/amd64
 Your final binary should be located in the
 `cw-plus/artifacts` folder (`cw-plus` being where you cloned your repository).
 
 ## Contract code
 
 When the contract binary is built, the first interaction with CosmWasm is uploading
-it to the blockchain (assuming you have your wasm binary in the working directory):
+it to the blockchain (assuming you have your wasm binary in the working directory and have started the wasmd node):
 
 ```bash
-$ wasmd tx wasm store ./cw4-group.wasm --from wallet $TXFLAG -y -b block
+$ wasmd keys add wallet --keyring-backend=test
+$ wasmd genesis add-genesis-account $(wasmd keys show wallet -a --keyring-backend=test) 1000000000stake --keyring-backend=test
+$ wasmd tx wasm store ./artifacts/cw4_group.wasm --from wallet --gas 1500000 --fees 75000stake --chain-id=docs-chain-1 --keyring-backend=test -y
 ```
 
 As a result of such an operation you would get json output like this:
@@ -103,12 +104,13 @@ logs:
     type: store_code
 ```
 
-I ignored most of not fields as they are not relevant for now - what we care
-about is the event emitted by blockchain with information about `code_id` of
+I ignored most of the fields as they are not relevant for now - what we care
+about is the event emitted by the blockchain with information about the `code_id` of the
 stored contract - in my case the contract code was stored in blockchain under
-the id of `1069`. I can now look at the code by querying for it:
+the id of `1069`. I can now look at the code by querying for it. If the code id is not shown, you can optionally query for it as shown below.
 
 ```bash
+$ wasmd query wasm list-code
 $ wasmd query wasm code 1069 code.wasm
 ```
 
@@ -127,7 +129,8 @@ instantiation is calling a constructor. To do that, I would send an
 instantiate message to my contract:
 
 ```bash
-$ wasmd tx wasm instantiate 1069 '{"members": []}' --from wallet --label "Group 1" --no-admin $TXFLAG -y
+$ wasmd tx wasm instantiate 1069 '{"members": []}' --from wallet --label "Group 1" --no-admin --gas 1500000 --fees 75000stake --chain-id=docs-chain-1 --keyring-backend=test -y
+$ wasmd query tx F1E9ABDC201F794041A096B17F3F1CDA6B8A06443F5174C01F63A191528F2F3B
 ```
 
 What I do here is create a new contract and immediately call the `Instantiate`
@@ -159,15 +162,15 @@ logs:
 ```
 
 As you can see, we again look at `logs[].events[]` field, looking for
-interesting event and extracting information from it - it is the common case.
+interesting event and extracting information from it.
 I will talk about events and their attributes in the future but in general,
-it is a way to notify the world that something happened. Do you remember the
+it is a way to notify the world that something has happened. Do you remember the
 KFC example? If a waiter is serving our dish, he would put a tray on the bar,
 and she would yell (or put on the screen) the order number - this would be
-announcing an event, so you know some summary of operation, so you can go and
+announcing an event, so you know some summary of operation and can go and
 do something useful with it.
 
-So, what use can we do with the contract? We obviously can call it! But first
+So, what can we do with the contract? We obviously can call it! But first
 I want to tell you about addresses.
 
 ## Addresses in CosmWasm
@@ -206,7 +209,7 @@ $ wasmd keys show wallet
 Having an address is very important because it is a requirement for being able
 to call anything. When we send a message to a contract it always knows the
 address which sends this message so it can identify it - not to mention that
-this sender is an address that would play a gas cost.
+this sender is an address that would pay a gas cost.
 
 ## Querying the contract
 
@@ -253,7 +256,8 @@ $ wasmd keys show wallet
 And instantiate a new group contract - this time with proper admin:
 
 ```bash
-$ wasmd tx wasm instantiate 1069 '{"members": [], "admin": "wasm1um59mldkdj8ayl5gknp9pnrdlw33v40sh5l4nx"}' --from wallet --label "Group 1" --no-admin $TXFLAG -y
+$ wasmd tx wasm instantiate 1069 '{"members": [], "admin": "wasm1um59mldkdj8ayl5gknp9pnrdlw33v40sh5l4nx"}' --from wallet --label "Group 1" --no-admin --gas 1500000 --fees 75000stake --chain-id=docs-chain-1 --keyring-backend=test -y
+$ wasmd query tx 4F0A116BBBA6EF3C060465E788CB795C39AEBB1F0BA8A4013B3CAC536F36B425
 ..
 logs:
 - events:
@@ -268,9 +272,7 @@ logs:
 
 You may ask, why do we pass some kind of `--no-admin` flag, if we just said, we
 want to set an admin to the contract? The answer is sad and confusing, but...
-it is a different admin. The admin we want to set is one checked by the
-contract itself and managed by him. The admin which is declined with
-`--no-admin` flag, is a wasmd-level admin, which can migrate the contract. You
+it is a different admin. The admin we want to set is one checked and managed by the contract itself. The admin which is declined with the `--no-admin` flag, is a wasmd-level admin, which can migrate the contract. You
 don't need to worry about the second one at least until you learn about
 contract migrations - until then you can always pass the `--no-admin` flag to
 the contract.
@@ -295,8 +297,7 @@ So, there is an admin, it seems like the one we wanted to have there. So now we
 would add someone to the group - maybe ourselves?
 
 ```bash
-wasmd tx wasm execute wasm1n5x8hmstlzdzy5jxd70273tuptr4zsclrwx0nsqv7qns5gm4vraqeam24u '{ "update_members": { "add": [{ "addr": "wasm1um59mldkdj8ayl5gkn
-p9pnrdlw33v40sh5l4nx", "weight": 1 }], "remove": [] } }' --from wallet $TXFLAG -y
+wasmd tx wasm execute wasm1n5x8hmstlzdzy5jxd70273tuptr4zsclrwx0nsqv7qns5gm4vraqeam24u '{ "update_members": { "add": [{ "addr": "wasm1um59mldkdj8ayl5gknp9pnrdlw33v40sh5l4nx", "weight": 1 }], "remove": [] } }' --from wallet --gas 1500000 --fees 75000stake --chain-id=docs-chain-1 --keyring-backend=test -y
 ```
 
 The message for modifying the members is `update_members` and it has two

@@ -19,7 +19,7 @@ As an example, we would add an event `admin_added` emitted by our contract on th
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
 };
  
 # pub fn instantiate(
@@ -41,8 +41,8 @@ use cosmwasm_std::{
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -269,16 +269,14 @@ Events are emitted by adding them to the response with
 Additionally, there is a possibility to add attributes directly to the response. It is just sugar. By default,
 every execution emits a standard "wasm" event. Adding attributes to the result adds them to the default event.
 
-We can check if events are properly emitted by contract. It is not always done, as it is much of boilerplate in
-test, but events are, generally, more like logs - not necessarily considered main contract logic. Let's now write
-single test checking if execution emits events:
+We can check if events are properly emitted by the contract. This is not always done as it adds a lot of boilerplate code to the test, and events are, generally, more like logs - not necessarily considered main contract logic. Let's now write a single test checking if execution emits events:
 
 ```rust,noplayground
 # use crate::error::ContractError;
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -301,8 +299,8 @@ single test checking if execution emits events:
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -515,17 +513,19 @@ mod tests {
 # 
     #[test]
     fn add_members() {
-        let mut app = App::default();
+        let mut app = custom_app();
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
 
+        let owner = app.api().addr_make("owner");
+
         let addr = app
             .instantiate_contract(
                 code_id,
-                Addr::unchecked("owner"),
+                owner.clone(),
                 &InstantiateMsg {
-                    admins: vec!["owner".to_owned()],
+                    admins: vec![owner.to_string()],
                 },
                 &[],
                 "Contract",
@@ -533,12 +533,13 @@ mod tests {
             )
             .unwrap();
 
+        let user = app.api().addr_make("user");
         let resp = app
             .execute_contract(
-                Addr::unchecked("owner"),
+                owner.clone(),
                 addr,
                 &ExecuteMsg::AddMembers {
-                    admins: vec!["user".to_owned()],
+                    admins: vec![user.to_string()],
                 },
                 &[],
             )
@@ -576,7 +577,7 @@ mod tests {
                 .find(|attr| attr.key == "addr")
                 .unwrap()
                 .value,
-            "user"
+            user.to_string()
         );
     }
 }

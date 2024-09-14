@@ -20,11 +20,11 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
+cw-multi-test = "2.1.1"
 ```
 
 I added a new
@@ -37,7 +37,7 @@ When we have the dependency ready, update our test to use the framework:
 ```rust,noplayground
 # use crate::msg::{GreetResp, QueryMsg};
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -53,7 +53,7 @@ When we have the dependency ready, update our test to use the framework:
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
+#         Greet {} => to_json_binary(&query::greet()?),
 #     }
 # }
 # 

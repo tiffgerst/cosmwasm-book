@@ -6,3 +6,4 @@ real environment is to use one of the big CosmWasm chains testnets - Osmosis, Ju
 Terra, or other ones.
 [Here](https://docs.osmosis.zone/cosmwasm/testnet/cosmwasm-deployment/) is the
 recommended introduction on how to start with the Osmosis testnet.
+[Here](https://docs.cosmwasm.com/wasmd) is the setup for wasmd

@@ -1,7 +1,7 @@
 # Fixing admin contract
 
 Now that we know what we want to achieve, we can start by aligning the
-contract we already have to become an admin contract. It is primarily
+contract we already have to become an admin contract. It is mostly
 fine at this point, but we want to do a cleanup.
 
 ## Cleaning up queries
@@ -47,7 +47,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        AdminsList {} => to_binary(&query::admins_list(deps)?),
+        AdminsList {} => to_json_binary(&query::admins_list(deps)?),
     }
 }
 ```
@@ -56,48 +56,15 @@ Finally, we remove the irrelevant handler from the `contract::query` module.
 We also need to make sure all references to it are gone (eg. if there are any
 in the tests).
 
-## Generating the library output
-
-At the very beginning of the book, we set the `crate-type` in `Cargo.toml` as
-`"cdylib"`. It was required to generate the wasm output, but it comes with a
-drawback - the dynamic libraries, as this cannot be used as dependencies in
-other crates. It was not a problem before, but in practice we often want to
-depend contract on others to get access to some types of them - for example,
-defined messages.
-
-Good for us. It is easy to fix. You might notice that the `crate-type` is an array,
-not a single string. The reason for that is that our project can emit several
-targets - in particular, we can add there the default `"rlib"` crate type to
-make it generate a "rust library" output - which is what we need to use as a
-dependency. Let's update our `Cargo.toml`:
+## Change contract name
+"contract" is not very descriptive, so lets update the name in the Cargo.toml to "admin". You may need to update the import in schema.rs as well.
 
 ```toml
 [package]
 name = "admin"
 version = "0.1.0"
 edition = "2021"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-# 
-# [features]
-# library = []
-# 
-# [dependencies]
-# cosmwasm-std = { version = "1.1.4", features = ["staking"] }
-# serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-# cw-storage-plus = "0.15.1"
-# thiserror = "1"
-# schemars = "0.8.1"
-# cw-utils = "0.15.1"
-# cosmwasm-schema = "1.1.4"
-# 
-# [dev-dependencies]
-# cw-multi-test = "0.15.1"
 ```
-
-Also, note I changed the contract name - "contract" is not very descriptive, so
-I updated it to "admin".
 
 ## Project structure
 

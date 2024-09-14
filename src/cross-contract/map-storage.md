@@ -1,6 +1,6 @@
 # Map storage
 
-There is one thing to be immediately improved in the admin contract. Let's
+There is one thing that can immediately be improved in the admin contract. Let's
 check the contract state:
 
 ```rust
@@ -11,20 +11,18 @@ pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
 pub const DONATION_DENOM: Item<String> = Item::new("donation_denom");
 ```
 
-Note that we keep our admin list as a single vector. However, in the whole
-contract, in most cases, we access only a single element of this vector.
+Note that we keep our admin list as a single vector. However, in most cases, we access only a single element of this vector.
 
-This is not ideal, as now, whenever we want to access the single admin entry,
-we have first to deserialize the list containing all of them and then iterate
-over them until we find the interesting one. This might consume a serious
-amount of gas and is completely unnecessary overhead - we can avoid that using
+This is not ideal, as now, whenever we want to access a single admin entry,
+we have to firstdeserialize the entire list and then iterate over it until we find the admin we are interested in. This might consume a serious
+amount of gas and is completely unnecessary - we can avoid that using
 the [Map](https://docs.rs/cw-storage-plus/1.0.1/cw_storage_plus/struct.Map.html)
 storage accessor.
 
 ## The `Map` storage
 
 First, let's define a map - in this context, it would be a set of keys with values
-assigned to them, just like a `HashMap` in Rust or dictionaries in many languages.
+assigned to them, just like a `HashMap` in Rust or `dictionaries` in many other languages.
 We define it as similar to an `Item`, but this time we need two types - the key type
 and the value type:
 
@@ -89,7 +87,7 @@ First, you might wonder about extra values passed to
 and
 [`range`](https://docs.rs/cw-storage-plus/1.0.1/cw_storage_plus/struct.Map.html#method.range) -
 those are in order: lower and higher bounds of iterated elements, and the order
-elements should be traversed.
+elements should be traversed in.
 
 While working with typical Rust iterators, you would probably first create an
 iterator over all the elements and then somehow skip those you are not
@@ -98,23 +96,21 @@ interested in. After that, you will stop after the last interesting element.
 It would more often than not require accessing elements you filter out, and
 this is the problem - it requires reading the element from the storage. And
 reading it from the storage is the expensive part of working with data, which
-we try to avoid as much as possible. One way to do it is to instruct the Map
+we try to avoid as much as possible. One way to do this is to instruct the Map
 where to start and stop deserializing elements from storage so it never reaches
 those outside the range.
 
 Another critical thing to notice is that the iterator returned by both keys and
 range functions are not iterators over elements - they are iterators over `Result`s.
-It is a thing because, as it is rare, it might be that item is supposed to exist,
-but there is some error while reading from storage - maybe the stored value is
-serialized in a way we didn't expect, and deserialization fails. This is actually
+Although its rare, it can happen that an item which is supposed to exist, throws an error while being read from storage - perhaps the stored value is serialized in an unexpected way, and deserialization fails. This is actually
 a real thing that happened in one of the contracts I worked on in the past - we
 changed the value type of the Map, and then forgot to migrate it, which caused
 all sorts of problems.
 
 ## Maps as sets
 
-So I imagine you can call me crazy right now - why do I spam about a `Map`, while
-we are working with vector? It is clear that those two represent two distinct
+So I imagine you can call me crazy right now - why do I keep going on about a `Map`, while
+we are working with a vector? It is clear that those two represent two distinct
 things! Or do they?
 
 Let's reconsider what we keep in the `ADMINS` vector - we have a list of objects
@@ -122,11 +118,11 @@ which we expect to be unique, which is a definition of a mathematical set. So
 now let me bring back my initial definition of the map:
 
 > First, let's define a map - in this context, it would be a *set* of keys with
-> values assigned to them, just like a HashMap in Rust or dictionaries in many languages.
+> values assigned to them, just like a HashMap in Rust or dictionaries in many other languages.
 
 I purposely used the word "set" here - the map has the set built into it. It is
 a generalization of a set or reversing the logic - the set is a particular case
-of a map. If you imagine a set that map every single key to the same value, then
+of a map. If you imagine a set that maps every single key to the same value, then
 the values become irrelevant, and such a map becomes a set semantically.
 
 How can you make a map mapping all the keys to the same value? We pick a type
@@ -168,7 +164,7 @@ pub fn instantiate(
 }
 ```
 
-It didn't simplify much, but we no longer need to collect our address. Then
+It didn't simplify much, but we no longer need to collect our addresses. Now
 let's move to the leaving logic:
 
 ```rust
@@ -196,11 +192,10 @@ single key as a distinct item. This way, accessing a single element will be
 cheaper than using a vector.
 
 However, this has its downside - accessing all the elements is more
-gas-consuming using Map! In general, we tend to avoid such situations - the
+gas-consuming when using a Map! In general, we tend to avoid such situations - the
 linear complexity of the contract might lead to very expensive executions
 (gas-wise) and potential vulnerabilities - if the user finds a way to create
-many dummy elements in such a vector, he may make the execution cost exceeding
-any gas limit.
+many dummy elements in the a vector, the execution cost may exceed the gas limits and make the contract unuseable.
 
 Unfortunately, we have such an iteration in our contract - the distribution flow
 becomes as follows:
@@ -238,9 +233,9 @@ pub fn donate(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractErro
 }
 ```
 
-If I had to write a contract like this, and this `donate` would be a critical,
+If I had to write a contract like this, and the `donate` function would be a critical,
 often called flow, I would advocate for going for an `Item<Vec<Addr>>` here.
-Fortunately, it is not the case - the distribution does not have to be linear in
+Fortunately, this is not the case - the distribution does not have to be linear in
 complexity! It might sound a bit crazy, as we have to iterate over all receivers
 to distribute funds, but this is not true - there is a pretty nice way to do so
 in constant time, which I will describe later in the book. For now, we will
@@ -263,16 +258,8 @@ pub fn admins_list(deps: Deps) -> StdResult<AdminsListResp> {
 ```
 
 Here we also have an issue with linear complexity, but it is far less of a problem.
-
-First, queries are often purposed to be called on local nodes, with no gas cost -
-we can query contracts as much as we want.
-
-And then, even if we have some limit on execution time/cost, there is no reason to
-query all the items every single time! We will fix this function later, adding
-pagination - to limit the execution time/cost of the query caller would be able to
-ask for a limited amount of items starting from the given one. Knowing this chapter,
-you can probably figure implementation of it right now, but I will show the common
-way we do that when I go through common CosmWasm practices.
+First, queries are often intended to be called on local nodes, with no gas cost - we can query contracts as much as we want.
+Additionally, even if we have some limit on execution time/cost, there is no reason to query all the items every single time. We will fix this function later by adding pagination - to limit the execution time/cost, the query caller would be able to ask for a limited number of items starting from a given one. Given your knowledge from this chapter, you can probably figure out the implementation now, but I will show the common way we do that when I go through common CosmWasm practices.
 
 ## Reference keys
 

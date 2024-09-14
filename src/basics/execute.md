@@ -49,7 +49,7 @@ And implement entry point:
 ```rust,noplayground
 use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
-# use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+# use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 # 
 # pub fn instantiate(
 #     deps: DepsMut,
@@ -71,8 +71,8 @@ use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
  
@@ -313,14 +313,13 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
-[dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-cw-storage-plus = "0.13.4"
-thiserror = "1"
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
+cw-storage-plus = "2.0.0"
+thiserror = { version = "1.0.58" }
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
+cw-multi-test = "2.1.1"
 ```
 
 Now we define an error type in `src/error.rs`:
@@ -386,7 +385,7 @@ Now update the execute endpoint to use our new error type:
 use crate::error::ContractError;
 use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
-# use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+# use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 # 
 # pub fn instantiate(
 #     deps: DepsMut,
@@ -408,8 +407,8 @@ use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
  
@@ -627,7 +626,7 @@ Let's write a test that verifies that a non-admin cannot add himself to a list:
 # use crate::error::ContractError;
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::ADMINS;
-# use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+# use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 # 
 # pub fn instantiate(
 #     deps: DepsMut,
@@ -649,8 +648,8 @@ Let's write a test that verifies that a non-admin cannot add himself to a list:
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 

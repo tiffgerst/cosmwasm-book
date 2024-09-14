@@ -19,7 +19,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
 
 ```
 

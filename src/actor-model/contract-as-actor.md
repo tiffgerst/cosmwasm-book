@@ -6,7 +6,7 @@ structure to understand how different features of the actor model are mapped to
 it.
 
 This will not be a step-by-step guide on contract creation, as it is a topic
-for the series itself. It would be going through contract elements roughly to
+for the series itself. Instead I'll go through contract elements to roughly
 visualize how to handle architecture in the actor model.
 
 ## The state
@@ -30,7 +30,7 @@ As you may already figure out, we want to check the `state.rs` first.
 
 The most important thing here is a couple of constants: `ADMIN`, `HOOKS`,
 `TOTAL`, and `MEMBERS`. Every one of such constants represents a single portion
-of the contract state - as tables in databases. The types of those constants
+of the contract state - as tables in a databases. The types of those constants
 represent what kind of table this is. The most basic ones are `Item<T>`, which
 keeps zero or one element of a given type, and `Map<K, T>` which is a key-value
 map.
@@ -57,18 +57,18 @@ Other types of storage objects not used in group contracts are:
 
 What is very important - every state type in the contract is accessed using
 some name. All of those types are not containers, just accessors to the state.
-Do you remember that I told you before that blockchain is our database? And
+Do you remember that I told you before that the blockchain is our database? And
 that is correct! All those types are just ORM to this database - when we use
 them to get actual data from it, we pass a special `State` object to them, so
 they can retrieve items from it.
 
-You may ask - why all that data for a contract are not auto-fetched by
+You may ask - why is all that data for a contract not auto-fetched by
 whatever is running it. That is a good question. The reason is that we want
 contracts to be lazy with fetching. Copying data is a very expensive operation,
 and for everything happening on it, someone has to pay - it is realized by gas
 cost. I told you before, that as a contract developer you don't need to worry
-about gas at all, but it was only partially true. You don't need to know
-exactly how gas is calculated, but by lowering your gas cost, you would may
+about gas at all, but that was only partially true. You don't need to know
+exactly how gas is calculated, but by lowering your gas cost, the
 execution of your contracts cheaper which is typically a good thing. One good
 practice to achieve that is to avoid fetching data you will not use in a
 particular call.
@@ -94,7 +94,7 @@ Note, that all the messages are attributed with
 `#[derive(Serialize, Deserialize)]`, and
 `#[serde(rename_all="snake_case")]`. Those attributes come from
 the [serde](https://serde.rs/) crate, and they help us with
-deserialization of them (and serialization in case of sending
+deserialization (and serialization in case of sending
 them to other contracts). The second one is not required,
 but it allows us to keep a camel-case style in our Rust code,
 and yet still have JSONs encoded with a snake-case style more
@@ -105,19 +105,19 @@ like everything there, can be used with the messages.
 
 One important thing to notice - empty variants of those enums,
 tend to use the empty brackets, like `Admin {}` instead of
-more Rusty `Admin`. It is on purpose, to make JSONs cleaner,
-and it is related to how `serde` serializes enum.
+more Rusty `Admin`. This is on purpose, to make JSONs cleaner,
+and it is related to how `serde` serializes enums.
 
 Also worth noting is that those message types are not set in stone,
 they can be anything. This is just a convention, but sometimes
 you would see things like `ExecuteCw4Msg`, or similar. Just keep
-in mind, to keep your message name obvious in terms of their
+in mind, to keep your message names obvious in terms of their
 purpose - sticking to `ExecuteMsg`/`QueryMsg` is generally a good
 idea.
 
 ## Entry points
 
-So now, when we have our contract message, we need a way to handle
+So now that we have our contract messages, we need a way to handle
 them. They are sent to our contract via entry points. There are
 three entry points in the `cw4-group` contract:
 
@@ -147,12 +147,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 ```
 
 Those functions are called by the CosmWasm virtual machine when
-a message is to be handled by contract. You can think about them
+a message is to be handled by a contract. You can think of them
 as the `main` function of normal programs, except they have a signature
 that better describes the blockchain itself.
 
-What is very important is that the names of those entry points (similarly to
-the `main` function) are fixed - it is relevant, so the virtual machine knows
+What is very important is that the names of these entry points (similarly to
+the `main` function) are fixed - this is so the virtual machine knows
 exactly what to call.
 
 So, let's start with the first line. Every entry point is attributed with
@@ -173,13 +173,13 @@ entry points for us, and those entry points are just calling our functions.
 Now take a look at functions arguments. Every single entry point takes as
 the last argument a message which triggered the execution of it (except for
 `reply` - I will explain it later). In addition to that, there are
-additional arguments provided by blockchain:
+additional arguments provided by the blockchain:
 
 * `Deps` or `DepsMut` object is the gateway to the world outside the smart contract context. It allows
   accessing the contract state, as well as querying other contracts, and
   also delivers an `Api` object with a couple of useful utility functions.
   The difference is that `DepsMut` allows updating state, while `Deps`
-  allows only to look at it.
+  only allows view operations.
 * `Env` object delivers information about the blockchain state at the
   moment of execution - its height, the timestamp of execution and information
   about the executing contract itself.
@@ -203,12 +203,12 @@ contract.
 The important thing is the `Ok` part of `Result`. Let's start with the
 `query` because this one is the simplest. The query always returns the `Binary`
 object on the `Ok` case, which would contain just serialized response.
-The common way to create it is just calling a `to_binary` method
+The common way to create it is just calling a `to_json_binary` method
 on an object implementing `serde::Serialize`, and they are typically
 defined in `msg.rs` next to message types.
 
 Slightly more complex is the return type returned by any other entry
-point - the `cosmwasm_std::Response` type. This one keep everything
+point - the `cosmwasm_std::Response` type. This one keeps everything
 needed to complete contract execution. There are three chunks of
 information in that.
 
@@ -219,13 +219,13 @@ and a list of attributes which are just string-string key-value pairs.
 
 You can notice that there is another `attributes` field on the `Response`.
 This is just for convenience - most executions would return
-only a single event, and to make it a bit easier to operate one, there
+only a single event, and to make it a bit easier to operate on, there
 is a set of attributes directly on response. All of them would be converted
 to a single `wasm` event which would be emitted. Because of that, I consider
 `events` and `attributes` to be the same chunk of data.
 
 Then we have the messages field, of `SubMsg` type. This one is the clue
-of cross-contact communication. Those messages would be sent to the
+to cross-contact communication. Those messages would be sent to the
 contracts after processing. What is important - the whole execution is
 not finished, unless the processing of all sub-messages scheduled by the contract
 finishes. So, if the group contract sends some messages as a result of
@@ -235,23 +235,23 @@ all the messages sent by it would also be handled (even if they failed).
 So, when all the sub-messages sent by contract are processed, then all the
 attributes generated by all sub-calls and top-level calls are collected and
 reported to the blockchain. But there is one additional piece of information -
-the `data`. So, this is another `Binary` field, just like the result of a query
+the `data`. This is another `Binary` field, just like the result of a query
 call, and just like it, it typically contains serialized JSON. Every contract
 call can return some additional information in any format. You may ask - in
 this case, why do we even bother returning attributes? It is because of a
 completely different way of emitting events and data. Any attributes emitted by
-the contract would be visible on blockchain eventually (unless the whole
+the contract would be visible on the blockchain eventually (unless the whole
 message handling fails). So, if your contract emitted some event as a result of
-being sub-call of some bigger use case, the event would always be there visible
+being a sub-call of some bigger use case, the event would always be there visible
 to everyone. This is not true for data. Every contract call would return only
 a single `data` chunk, and it has to decide if it would just forward the `data`
 field of one of the sub-calls, or maybe it would construct something by itself.
-I would explain it in a bit more detail in a while.
+I will explain this in a bit more detail later on.
 
 ## Sending submessages
 
 I don't want to go into details of the `Response` API, as it can be read
-directly from documentation, but I want to take a bit closer look at the part
+directly from the documentation, but I want to take a closer look at the part
 about sending messages.
 
 The first function to use here is `add_message`, which takes as an argument the
@@ -262,7 +262,7 @@ result of the contract at all.
 The other function to use is `add_submessage`, taking a `SubMsg` argument. It
 doesn't differ much from `add_message` - `SubMsg` just wraps the `CosmosMsg`,
 adding some info to it: the `id` field, and `reply_on`. There is also a
-`gas_limit` thing, but it is not so important - it just causes sub-message
+`gas_limit` thing, but this is not so important - it just causes sub-message
 processing to fail early if the gas threshold is reached.
 
 The simple thing is `reply_on` - it describes if the `reply` message should be
@@ -288,20 +288,20 @@ you would typically use helper constructors: `SubMsg::reply_on_success`,
 
 ## CosmosMsg
 
-If you took a look at the `CosmosMsg` type, you could be very surprised - there
+If you take a look at the `CosmosMsg` type, you might be very surprised - there
 are so many variants of them, and it is not obvious how they relate to
 communication with other contracts.
 
 The message you are looking for is the `WasmMsg` (`CosmosMsg::Wasm` variant).
-This one is very much similar to what we already know - it has a couple of
+This one is very similar to what we already know - it has a couple of
 variants of operation to be performed by contracts: `Execute`, but also
 `Instantiate` (so we can create new contracts in contract executions), and also
 `Migrate`, `UpdateAdmin`, and `ClearAdmin` - those are used to manage
-migrations (will tell a bit about them at the end of this chapter).
+migrations (I will tell you a bit about them at the end of this chapter).
 
 Another interesting message is the `BankMsg` (`CosmosMsg::Bank`). This one
 allows a contract to transfer native tokens to other contracts (or burn them -
-equivalent to transferring them to some black whole contract). I like to think
+equivalent to transferring them to some black hole contract). I like to think
 about it as sending a message to a very special contract responsible for handling
 native tokens - this is not a true contract, as it is handled by the blockchain
 itself, but at least to me it simplifies things.
@@ -330,7 +330,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 The `DepsMut`, and `Env` arguments are already familiar, but there is a new
 one, substituting the typical message argument: the `cosmwasm_std::Reply`.
 
-This is a type representing the execution status of the sub-message. It is
+This is a type representing the execution status of the sub-message. It is a
 slightly processed `cosmwasm_std::Response`. The first important thing it contains
 is an `id` - the same, which you set sending sub-message, so now you can
 identify your response. The other one is the `ContractResult`, which is very
@@ -338,16 +338,16 @@ similar to the Rust `Result<T, String>` type, except it is there for
 serialization purposes. You can easily convert it into a `Result` with an
 `into_result` function.
 
-In the error case of `ContracResult`, there is a string - as I mentioned
+In the error case of `ContractResult`, there is a string - as I mentioned
 before, errors are converted to strings right after execution. The `Ok` case
 contains `SubMsgExecutionResponse` with two fields: `events` emitted by
 sub-call, and the `data` field embedded on response.
 
-As said before, you never need to worry about forwarding events - CosmWasm
-would do it anyway. The `data` however, is another story. As mentioned before,
-every call would return only a single data object. In the case of sending
+As I said before, you never need to worry about forwarding events - CosmWasm
+will do it anyway. The `data` however, is another story. As mentioned before,
+every call will return only a single data object. In the case of sending
 sub-messages and not capturing a reply, it would always be whatever is returned
-by the top-level message. But it is not the case when `reply` is called. If a
+by the top-level message. But this is not the case when `reply` is called. If a
 a reply is called, then it is a function deciding about the final `data`. It can
 decide to either forward the data from the sub-message (by returning `None`) or
 to overwrite it. It cannot choose, to return data from the original execution
@@ -365,15 +365,15 @@ be used.
 I mentioned migrations earlier when describing the `WasmMsg`. So, migration
 is another action possible to be performed by contracts, which is kind
 of similar to instantiate. In software engineering, it is a common thing to
-release an updated version of applications. It is also a case in the blockchain -
-SmartContract can be updated with some new features. In such cases, a new
+release an updated version of applications. This is also the case in the blockchain -
+SmartContracts can be updated with some new features. In such cases, a new
 code is uploaded, and the contract is migrated - so it knows that from
 this point, its messages are handled by another, updated contract code.
 
 However, it may be that the contract state used by the older version of the
 contract differs from the new one. It is not a problem if some info was
 added (for example some additional map - it would be just empty right
-after migration). But the problem is, when the state changes,
+after migration). The problem is, when the state changes,
 for example, the field is renamed. In such a case, every contract execution
 would fail because of (de)serialization problems. Or even more subtle
 cases, like adding a map, but one which should be synchronized with the whole
@@ -411,7 +411,7 @@ never use in `wasmd`. It is equivalent to `CosmosMsg::Custom`, but instead of
 being a special blockchain-specific message to be sent and handled by a
 blockchain itself, it is now a special blockchain-specific message sent by the
 blockchain to contract in some conditions. There are many uses for those, but I
-will not cover them, because would not be related to `CosmWasm` itself. The
+will not cover them, because it is not related to `CosmWasm` itself. The
 signature of `sudo` looks like this:
 
 ```rust

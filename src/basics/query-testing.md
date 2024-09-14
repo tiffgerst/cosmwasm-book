@@ -7,7 +7,7 @@ the unit test. This approach is simple and doesn't require knowledge besides Rus
 ```rust,noplayground
 # use crate::msg::{GreetResp, QueryMsg};
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -23,7 +23,7 @@ the unit test. This approach is simple and doesn't require knowledge besides Rus
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
+#         Greet {} => to_json_binary(&query::greet()?),
 #     }
 # }
 # 
@@ -112,7 +112,7 @@ update our test:
 ```rust,noplayground
 # use crate::msg::{GreetResp, QueryMsg};
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -128,7 +128,7 @@ update our test:
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
+#         Greet {} => to_json_binary(&query::greet()?),
 #     }
 # }
 # 
@@ -193,7 +193,7 @@ taking it out of nowhere. It is a lousy testing approach. We can do better:
 
 # use crate::msg::{GreetResp, QueryMsg};
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -209,7 +209,7 @@ taking it out of nowhere. It is a lousy testing approach. We can do better:
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
+#         Greet {} => to_json_binary(&query::greet()?),
 #     }
 # }
 # 

@@ -16,18 +16,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
+cw-multi-test = "2.1.1"
 ```
 
 Now go to your `src/lib.rs` file, and add a new query entry point:
 
 ```rust,noplayground
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo,
     Response, StdResult,
 };
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
         message: "Hello World".to_owned(),
     };
 
-    to_binary(&resp)
+    to_json_binary(&resp)
 }
 ```
 
@@ -91,7 +91,7 @@ should be presented directly to the querier.
 
 Now take a look at the implementation. Nothing complicated happens there - we create an object we want
 to return and encode it to the [`Binary`](https://docs.rs/cosmwasm-std/1.0.0/cosmwasm_std/struct.Binary.html)
-type using the [`to_binary`](https://docs.rs/cosmwasm-std/1.0.0/cosmwasm_std/fn.to_binary.html) function.
+type using the [`to_json_binary`](https://docs.rs/cosmwasm-std/1.0.0/cosmwasm_std/fn.to_json_binary.html) function.
 
 ## Improving the message
 
@@ -103,7 +103,7 @@ In practice, we address this by using a non-empty query message type. Improve ou
 
 ```rust,noplayground
 # use cosmwasm_std::{
-#     entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # use serde::{Deserialize, Serialize};
 # 
@@ -137,7 +137,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 message: "Hello World".to_owned(),
             };
 
-            to_binary(&resp)
+            to_json_binary(&resp)
         }
     }
 }
@@ -168,7 +168,7 @@ separate function.
 
 ```rust,noplayground
 # use cosmwasm_std::{
-#     entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+#     entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 # };
 # use serde::{Deserialize, Serialize};
 # 
@@ -197,7 +197,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        Greet {} => to_binary(&query::greet()?),
+        Greet {} => to_json_binary(&query::greet()?),
     }
 }
 
@@ -261,7 +261,7 @@ to be now accessed from a different module. Now move forward to the `src/contrac
 ```rust,noplayground
 use crate::msg::{GreetResp, QueryMsg};
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 
 pub fn instantiate(
@@ -277,7 +277,7 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        Greet {} => to_binary(&query::greet()?),
+        Greet {} => to_json_binary(&query::greet()?),
     }
 }
 

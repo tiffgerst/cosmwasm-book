@@ -10,18 +10,13 @@ fees](https://docs.cosmos.network/master/basics/gas-fees.html) or
 [staking](https://en.wikipedia.org/wiki/Proof_of_stake) for consensus
 algorithm, but can be just arbitrary assets.
 
-Native tokens are assigned to their owners but can be transferred by their
-nature. Everything had an address in the blockchain is eligible to have its
-native tokens. As a consequence - tokens can be assigned to smart contracts!
-Every message sent to the smart contract can have some funds sent with it. In
-this chapter, we will take advantage of that and create a way to reward hard
-work performed by admins. We will create a new message - `Donate`, which will be
-used by anyone to donate some funds to admins, divided equally.
+Native tokens are assigned to their owners but can be transferred by their very nature. Everything that has an address on the blockchain is eligible to hold native tokens. As a consequence, tokens can be assigned to smart contracts!
+Every message sent to a smart contract can have funds sent with it. In this chapter, we will take advantage of that feature and create a way to reward the hard work performed by admins. We will create a new message - Donate, which can be used by anyone to donate funds to admins, to be divided equally among them.
 
 ## Preparing messages
 
 Traditionally we need to prepare our messages. We need to create a new
-`ExecuteMsg` variant, but we will also modify the `Instantiate` message a bit -
+`ExecuteMsg` variant, but we will also modify the `InstantiateMsg` message a bit -
 we need to have some way of defining the name of a native token we would use
 for donations. It would be possible to allow users to send any tokens they
 want, but we want to simplify things for now.
@@ -77,7 +72,7 @@ And instantiate it properly:
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 use crate::state::{ADMINS, DONATION_DENOM};
 # use cosmwasm_std::{
-#     to_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+#     to_json_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
 # };
 
 pub fn instantiate(
@@ -101,8 +96,8 @@ pub fn instantiate(
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -393,22 +388,21 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 library = []
 
 [dependencies]
-cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-cw-storage-plus = "0.13.4"
-thiserror = "1"
-schemars = "0.8.1"
-cw-utils = "0.13"
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
+cw-storage-plus = "2.0.0"
+thiserror = { version = "1.0.58" }
+cw-utils = "2.0.0"
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
-cosmwasm-schema = { version = "1.0.0" }
+cw-multi-test = "2.1.1"
+cosmwasm-schema = "2.1.3"
 ```
 
 Then we can implement the donate handler:
@@ -418,7 +412,7 @@ Then we can implement the donate handler:
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::{ADMINS, DONATION_DENOM};
 use cosmwasm_std::{
-    coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, Event, MessageInfo,
+    coins, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, Event, MessageInfo,
     Response, StdResult,
 };
  
@@ -443,8 +437,8 @@ use cosmwasm_std::{
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -807,7 +801,7 @@ is to write a test.
 # use crate::msg::{AdminsListResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg};
 # use crate::state::{ADMINS, DONATION_DENOM};
 # use cosmwasm_std::{
-#     coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
+#     coins, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, Event, MessageInfo, Response, StdResult,
 # };
 # 
 # pub fn instantiate(
@@ -831,8 +825,8 @@ is to write a test.
 #     use QueryMsg::*;
 # 
 #     match msg {
-#         Greet {} => to_binary(&query::greet()?),
-#         AdminsList {} => to_binary(&query::admins_list(deps)?),
+#         Greet {} => to_json_binary(&query::greet()?),
+#         AdminsList {} => to_json_binary(&query::admins_list(deps)?),
 #     }
 # }
 # 
@@ -1148,22 +1142,31 @@ mod tests {
 # 
     #[test]
     fn donations() {
-        let mut app = App::new(|router, _, storage| {
-            router
-                .bank
-                .init_balance(storage, &Addr::unchecked("user"), coins(5, "eth"))
-                .unwrap()
-        });
-
+        let api = MockApi::default().with_prefix("inj");
+    
+        let user = api.addr_make("user");
+    
+        let mut app = AppBuilder::new()
+            .with_api(api)
+            .build(|router, api, storage| {
+                router
+                    .bank
+                    .init_balance(storage, &user, coins(5, "eth"))
+                    .unwrap();
+            });
+    
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
-
+    
+        let test_admin1 = app.api().addr_make("admin1");
+        let test_admin2 = app.api().addr_make("admin2");
+    
         let addr = app
             .instantiate_contract(
                 code_id,
-                Addr::unchecked("owner"),
+                user.clone(),  // Use the properly formatted user address
                 &InstantiateMsg {
-                    admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    admins: vec![test_admin1.to_string(), test_admin2.to_string()],
                     donation_denom: "eth".to_owned(),
                 },
                 &[],
@@ -1171,45 +1174,45 @@ mod tests {
                 None,
             )
             .unwrap();
-
+    
         app.execute_contract(
-            Addr::unchecked("user"),
+            user.clone(),
             addr.clone(),
             &ExecuteMsg::Donate {},
             &coins(5, "eth"),
         )
         .unwrap();
-
+    
         assert_eq!(
             app.wrap()
-                .query_balance("user", "eth")
+                .query_balance(user.as_str(), "eth")
                 .unwrap()
                 .amount
                 .u128(),
             0
         );
-
+    
         assert_eq!(
             app.wrap()
-                .query_balance(&addr, "eth")
+                .query_balance(addr.as_str(), "eth")
                 .unwrap()
                 .amount
                 .u128(),
             1
         );
-
+    
         assert_eq!(
             app.wrap()
-                .query_balance("admin1", "eth")
+                .query_balance(test_admin1.as_str(), "eth")
                 .unwrap()
                 .amount
                 .u128(),
             2
         );
-
+    
         assert_eq!(
             app.wrap()
-                .query_balance("admin2", "eth")
+                .query_balance(test_admin2.as_str(), "eth")
                 .unwrap()
                 .amount
                 .u128(),

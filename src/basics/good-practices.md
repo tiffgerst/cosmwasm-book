@@ -67,20 +67,25 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+library = []
+
 [dependencies]
-cosmwasm-std = { version = "1.1.4", features = ["staking"] }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-cw-storage-plus = "0.15.1"
-thiserror = "1"
-schemars = "0.8.1"
-cosmwasm-schema = "1.1.4"
+cosmwasm-std = { version = "2.1.3", features = ["staking"] }
+serde = { version = "1.0.210", default-features = false, features = ["derive"] }
+cw-storage-plus = "2.0.0"
+thiserror = { version = "1.0.58" }
+cw-utils = "2.0.0"
+schemars = "0.8.16"
+cosmwasm-schema = "2.1.3"
 
 [dev-dependencies]
-cw-multi-test = "0.13.4"
+cw-multi-test = "2.1.1"
 ```
 
-There is one additional change in this file - in `crate-type` I added "rlib". "cdylib" crates cannot be used as typical
-Rust dependencies. As a consequence, it is impossible to create examples for such crates.
+There are two additional change in this file - 
+1. I moved cosmwasm-schema from [dev-dependencies] to [dependencies]
+2. in `crate-type` I added "rlib". "cdylib" crates cannot be used as typical Rust dependencies. As a consequence, it is impossible to create examples for such crates.
 
 Now go back to `src/msg.rs` and add a new derive for all messages:
 
@@ -210,7 +215,7 @@ to all your query variants to generate additional information about the
 query-response relationship.
 
 Now, we want to make the `msg` module public and accessible by crates depending
-on our contract (in this case - for schema example). Update a `src/lib.rs`:
+on our contract (in this case - for schema example). Update `src/lib.rs`:
 
 ```rust,noplayground
 # use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
@@ -284,7 +289,7 @@ I encourage you to go to generated file to see what the schema looks like.
 The problem is that, unfortunately, creating this binary makes our project fail
 to compile on the Wasm target - which is, in the end, the most important one.
 Fortunately, we don't need to build the schema binary for the Wasm target - let's
-align the `.cargo/config` file:
+align the `.cargo/config.toml` file:
 
 ```toml
 [alias]
