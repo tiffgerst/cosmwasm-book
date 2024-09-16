@@ -100,6 +100,41 @@ note that I removed the underscore from the name of the
 `env` block - it was there to tell the Rust compiler
 the variable is purposely unused and not some kind of a bug.
 
+Similarly, we need to update the add_members function, and the way we are calling the function:
+
+```rust
+pub fn add_members(
+        deps: DepsMut,
+        env: Env,
+        info: MessageInfo,
+        admins: Vec<String>,
+    ) -> Result<Response, ContractError> {
+    
+        for addr in admins {
+            let admin = deps.api.addr_validate(&addr)?;
+            ADMINS.save(deps.storage, &admin, &env.block.time)?;
+        }
+
+        Ok(resp)
+    }
+
+    pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
+    use ExecuteMsg::*;
+
+    match msg {
+        AddMembers { admins } => execute::add_members(deps, env, info, admins),
+        Leave {} => execute::leave(deps, info).map_err(Into::into),
+        Donate {} => execute::donate(deps, info),
+    }
+}
+```
+Note that we now need to use and pass in Env to the add_members function as we need to access the block timestamp. 
+
 Finally, remember to remove any obsolete `Empty` imports
 through the project - the compiler should help you point out
 unused imports.

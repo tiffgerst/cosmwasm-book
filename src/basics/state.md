@@ -571,17 +571,9 @@ mod tests {
     use cosmwasm_std::testing::MockApi;
     use cw_multi_test::{App, ContractWrapper, Executor, AppBuilder};
 
-
-    fn custom_app() -> App {
-        let mock_api = MockApi::default().with_prefix("inj");
-        AppBuilder::new()
-            .with_api(mock_api)
-            .build(|_, _, _| {})
-    }
-
     #[test]
     fn instantiation() {
-        let mut app = custom_app();
+        let mut app = App::default();
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));

@@ -513,7 +513,7 @@ mod tests {
 # 
     #[test]
     fn add_members() {
-        let mut app = custom_app();
+        let mut app = App::default();
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));

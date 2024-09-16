@@ -241,7 +241,7 @@ to distribute funds, but this is not true - there is a pretty nice way to do so
 in constant time, which I will describe later in the book. For now, we will
 leave it as it is, acknowledging the flaw of the contract, which we will fix later.
 
-The final function to fix is the `admins_list` query handler:
+The final functions to fix are the `admins_list` query handler and the `add_members` function:
 
 ```rust
 use crate::state::ADMINS;
@@ -255,11 +255,42 @@ pub fn admins_list(deps: Deps) -> StdResult<AdminsListResp> {
     let resp = AdminsListResp { admins };
     Ok(resp)
 }
+
 ```
 
 Here we also have an issue with linear complexity, but it is far less of a problem.
 First, queries are often intended to be called on local nodes, with no gas cost - we can query contracts as much as we want.
 Additionally, even if we have some limit on execution time/cost, there is no reason to query all the items every single time. We will fix this function later by adding pagination - to limit the execution time/cost, the query caller would be able to ask for a limited number of items starting from a given one. Given your knowledge from this chapter, you can probably figure out the implementation now, but I will show the common way we do that when I go through common CosmWasm practices.
+
+Finally, update the add_members function
+
+```rust
+pub fn add_members(
+        deps: DepsMut,
+        info: MessageInfo,
+        admins: Vec<String>,
+    ) -> Result<Response, ContractError> {
+        if !ADMINS.has(deps.storage, info.sender.clone()) {
+            return Err(ContractError::Unauthorized {
+                sender: info.sender,
+            });
+        }
+        let events = admins
+            .iter()
+            .map(|admin| Event::new("admin_added").add_attribute("addr", admin));
+        let resp = Response::new()
+            .add_events(events)
+            .add_attribute("action", "add_members")
+            .add_attribute("added_count", admins.len().to_string());
+
+        for addr in admins {
+            let admin = deps.api.addr_validate(&addr)?;
+            ADMINS.save(deps.storage, admin, &Empty {})?;
+        }
+
+        Ok(resp)
+    }
+```
 
 ## Reference keys
 
@@ -278,7 +309,7 @@ pub const ADMINS: Map<&Addr, Empty> = Map::new("admins");
 pub const DONATION_DENOM: Item<String> = Item::new("donation_denom");
 ```
 
-Finally, we need to fix the usages of the map in two places:
+Finally, we need to fix the usages of the map in a few places:
 
 ```rust
 # use crate::state::{ADMINS, DONATION_DENOM};
@@ -315,4 +346,23 @@ pub fn leave(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
 #
    Ok(resp)
 }
+
+pub fn add_members(
+        deps: DepsMut,
+        info: MessageInfo,
+        admins: Vec<String>,
+    ) -> Result<Response, ContractError> {
+        if !ADMINS.has(deps.storage,&info.sender) {
+            return Err(ContractError::Unauthorized {
+                sender: info.sender,
+            });
+        }
+
+        for addr in admins {
+            let admin = deps.api.addr_validate(&addr)?;
+            ADMINS.save(deps.storage, &admin, &Empty {})?;
+        }
+
+        Ok(resp)
+    }
 ```
