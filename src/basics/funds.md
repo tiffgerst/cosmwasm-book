@@ -1245,6 +1245,8 @@ where the
 [`init_balance`](https://docs.rs/cw-multi-test/0.13.4/cw_multi_test/struct.BankKeeper.html#method.init_balance)
 function sits.
 
+Not that we have also had to use a mock api for the test app to ensure test addresses are deemed valid. While we are using the prefix "inj" for "injective" you can change this to be whatever you like.
+
 ## Plot Twist!
 
 As we covered most of the important basics about building Rust smart contracts, I have a serious exercise for you.

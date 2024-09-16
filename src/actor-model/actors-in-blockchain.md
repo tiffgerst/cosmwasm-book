@@ -3,7 +3,7 @@
 Previously we were talking about actors mostly in the abstraction of any
 blockchain-specific terms. However, before we can dive into the code, we need
 to establish some common language. To do so we need to look at contracts from
-the perspective of external users instead of their implementation.
+the perspective of external users, instead of their implementation.
 
 In this part, I will use the `wasmd` binary to communicate with a
 testnet. To properly set it up, check the [Quick start with

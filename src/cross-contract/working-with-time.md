@@ -4,7 +4,7 @@ The concept of time in the blockchain is tricky - as in
 every distributed system, it is not easy to synchronize the
 clocks of all the nodes.
 
-However, there is the notion of a time that is
+However, there is the notion of time that is
 monotonic - which means that it should never go "backward"
 between executions. Also, what is important is - time is
 always unique throughout the whole transaction - and even
